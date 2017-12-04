@@ -1,4 +1,4 @@
-##Statistical Inference Final Project (GSS Survey -ANOVA)
+## Statistical Inference Final Project (GSS Survey -ANOVA)
 
 This analysis is part of an online course on Inferential Statistics which I completed. The information for this analysis has been drawn from the the General Social Survey (http://gss.norc.org/About-The-GSS). The GSS survey asks respondents questions about their attitudes, behaviours and attributes. This survey has been carried out using face-to-face interviews. The sample was selected randomly, using a mapping system to cover a cross section of the nation. The mapping methodology is not detailed, but could affect the randomization.
 
