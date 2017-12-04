@@ -1,0 +1,241 @@
+---
+title: "Statistical inference with the GSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+```{r load-data}
+load("gss.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+The GSS survey asks respondents questions about their attitudes, behaviours and attributes. This survey has been carried out using face-to-face interviews. The sample was selected randomly, using a mapping system to cover a cross section of the nation. The mapping methodology is not detailed, but could affect the randomization.
+
+* * *
+
+## Part 2: Research question
+Which group over the years forms the majority in terms of political views (liberal, conservative, etc.)? Is there a correlation between level of education and political views? Which group (separated by political views) has, on average, the highest number of completed years of education? Which group has completed the least?
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+```{r}
+# The first step in answering the above questions is visualizing the data. In order to get the most accurate picture from our data, we need to get rid of blank values in the variables we plan to use:
+
+gssfilt<-gss%>%
+  filter(!is.na(educ))
+
+gssfilt2<-gssfilt%>%
+  filter(!is.na(polviews))
+
+#Next, we create a table with the counts in each group to find out which groups have the largest and smallest numbers.
+
+countspolviews <- table(gssfilt2$polviews)
+barplot(countspolviews, main="gssfilt2", 
+  	xlab="polviews")
+
+# It seems that those who hold 'Moderate' views have the largest numbers, while those with the most extreme views  (on either side of the political spectrum) number in the least.
+```
+
+```{r}
+#We can also complete a boxplot with the filtered dataset. 
+
+boxplot(gssfilt2$educ~gssfilt2$polviews)
+
+#It seems that the broadest inter-quartile range belongs to the 'Extremely Liberal' category, while 'Moderates' have many more outliers. Outliers do present problems for ANOVA, but nevetheless, we will press ahead.
+```
+
+```{r}
+
+Libs<-gssfilt2%>%
+  filter(polviews=="Liberal")
+
+Cons<-gssfilt2%>%
+  filter(polviews=="Conservative")
+
+Slibs<-gssfilt2%>%
+  filter(polviews=="Slightly Liberal")
+
+Scons<-gssfilt2%>%
+  filter(polviews=="Slightly Conservative")
+
+Exlibs<-gssfilt2%>%
+  filter(polviews=="Extremely Liberal")
+
+Excons<-gssfilt2%>%
+  filter(polviews=="Extrmly Conservative")
+
+Mods<-gssfilt2%>%
+  filter(polviews=="Moderate")
+
+
+
+#Next, we can find the average level of edcuation for each group as below.
+
+Mlibs<-Libs%>%
+  summarise(mean(educ))
+
+Mcons<-Cons%>%
+  summarise(mean(educ))
+
+MSlibs<-Slibs%>%
+  summarise(mean(educ))
+
+MScons<-Scons%>%
+  summarise(mean(educ))
+
+MExlibs<-Exlibs%>%
+  summarise(mean(educ))
+
+MExcons<-Excons%>%
+  summarise(mean(educ))
+
+Mmods<-Mods%>%
+  summarise(mean(educ))
+
+Meangss<-gssfilt2%>%
+  summarise(mean(educ))
+
+Mlibs
+Mcons
+MSlibs
+MScons
+MExlibs
+MExcons
+Mmods
+Meangss
+
+#Having found the means for the level of education for each group, we can draw a bar plot to compare means.
+
+B <- c(13.52216, 13.03176, 13.26354, 13.26876, 13.21369, 12.21119, 12.48513, 12.92506)
+
+barplot(B, main="Mean Educ by Polview", xlab="Polview Group", ylab="Means", names.arg=c("Lib","Cons","Sl Lib","Sl Cons","Ex Libs","Ex Cons","Mods", "Totmean"))
+
+#It seems that 'Slightly Conservative', 'Liberal' and Slightly Liberal' groups have completed the most years of education on average, while 'Moderate' and 'Extremely Conservative' groups have completed the least years of education.
+
+```
+
+* * *
+
+## Part 4: Inference
+```{r}
+
+# Since we are comparing multiple groups and multiple means for our inference, we use ANOVA (even though we have a significant number of outliers. We need the counts for each group, so we can calculate and name these counts as follows:
+
+Clibs = count(Libs)
+Ccons = count(Cons)
+CSlibs = count(Slibs)
+CScons = count(Scons)
+CExlibs = count(Exlibs)
+CExcons = count(Excons)
+Cmods = count(Mods)
+Cgssfilt2 = count(gssfilt2)
+
+Clibs 
+Ccons 
+CSlibs 
+CScons
+CExlibs 
+CExcons 
+Cmods
+Cgssfilt2 
+
+#We create a new column with the total mean in order to calculate the Sum of Squares Total (SST)later.
+
+gssfilt2$Meangss1<-12.92506
+
+#We can now calculate the Sum of Squares for each group as well as the total filtered population.
+
+ssLib = Clibs*(Mlibs-Meangss)^2
+ssCon = Ccons*(Mcons-Meangss)^2
+ssSlib = CSlibs*(MSlibs-Meangss)^2
+ssScon = CScons*(MScons-Meangss)^2
+ssExlib = CExlibs*(MExlibs-Meangss)^2
+ssExcon = CExcons*(MExcons-Meangss)^2
+ssMod = Cmods*(Mmods-Meangss)^2
+
+ssgssfilt2<-gssfilt2%>%
+  summarise(sum((educ-Meangss1)^2))
+
+# We can now go ahead and calculate the 'Between-Group Sum of Squares' (also known as SSG)
+
+SSG = ssMod+ssExlib+ssExcon+ssSlib+ssScon+ssCon+ssLib
+
+# Next, we can now go ahead and calculate the 'Within-Group Sum of Squares' (also known as SSE). This is sometimes called the error total.
+
+SSE = ssgssfilt2-SSG
+
+```
+
+
+```{r}
+#We are now ready to find our F Statistic. This is the 'Mean Squares Total Between Groups(MSG)' divided by the 'Mean squares Total Within Groups(MSE)'
+
+MSGgss = (SSG/(7-1))
+MSEgss = (SSE/(Cgssfilt2-6))
+
+Fstat = MSGgss/MSEgss
+
+# Fstat yields 145.4032. To find out if this is statistically significant, we use the probability of finding such a value due to random events alone.
+
+pf(145.4032, 6, 47782, lower.tail=FALSE)
+
+#The p value is extremely small, leading us to believe that there is more than randomization at play between level of education and political views. We can safely say that level of education plays a significant role in determining political views for at least two paired groups. We can further do pairwise tests for significant differences between all combinations of pairs. That will tell us which groups are responsible for the significant p value.
+
+```
+
+```{r}
+
+# Since we're carrying out multiple pairwise tests, we need to reduce the Type 1 error. The follwing BonFerroni Correction reduces our margin of significance (Alpha value).
+
+BonCorr = .05/(7*(7-1)/2)
+
+#Our new alpha value post BonFerroni Correction is .023%. We can now calculate T values for a number of pairwise tests. We will not conduct all pairwise tests for this exercise.
+
+(Mlibs-Mcons)/((MSEgss/Clibs+MSEgss/Ccons)^.5)
+(MExlibs-Mcons)/((MSEgss/CExlibs+MSEgss/Ccons)^.5)
+(MExlibs-Mlibs)/((MSEgss/CExlibs+MSEgss/Clibs)^.5)
+(MExlibs-MSlibs)/((MSEgss/CExlibs+MSEgss/CSlibs)^.5)
+(MExcons-MSlibs)/((MSEgss/CExcons+MSEgss/CSlibs)^.5)
+(MExcons-MExlibs)/((MSEgss/CExcons+MSEgss/CExlibs)^.5)
+```
+
+```{r}
+
+# We can now calculate the p values for each pairwise test shown above.
+LibCon = 2*pt(8.972954,df=47782,lower.tail=FALSE)
+ExlibCon = 2*pt(1.993907,df=47782,lower.tail=FALSE)
+Exliblib = 2*pt(3.310333,df=47782,lower.tail=FALSE)
+ExlibSlib = 2*pt(0.5399664,df=47782,lower.tail=FALSE)
+ExconSlib = 2*pt(11.978,df=47782,lower.tail=FALSE)
+ExconExlib = 2*pt(8.719465,df=47782,lower.tail=FALSE)
+
+LibCon
+ExlibCon
+Exliblib
+ExlibSlib
+ExconSlib
+ExconExlib
+
+#The smaller the p value, the more likely it seems that the difference between levels of education has a bearing on political view. It seems that there is a significant p value for at least 4 pairs, since four of the tests yield p values less than the significance value.
+```
